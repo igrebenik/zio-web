@@ -129,11 +129,11 @@ private[websockets] object BitChunk {
 
   def bits(bits: Chunk[Boolean]): BitChunk = ???
 
-  def int(int: Int): BitChunk = ???
+  def int(int: Int, size: Int = 32): BitChunk = ???
 
-  def long(long: Long): BitChunk = ???
+  def long(long: Long, size: Int = 64): BitChunk = ???
 
-  def short(short: Short): BitChunk = ???
+  def short(short: Short, size: Int = 16): BitChunk = ???
 
   def byte(byte: Byte, size: Int = 8): BitChunk = ???
 
