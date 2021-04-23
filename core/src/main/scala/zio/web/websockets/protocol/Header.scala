@@ -15,10 +15,10 @@ object Header {
   val lengthCodec: FrameCodec[Int] =
     FrameCodec.int.eimap[BitChunk, Int](
       ch => {
-        val len = ch.take(6).toByte
+        val len = ch.take(7).toByte
 
-        if (len == 126) Right(ch.drop(6).toInt)
-        if (len == 127) Right(ch.drop(6).toInt)
+        if (len == 126) Right(ch.drop(7).toInt)
+        if (len == 127) Right(ch.drop(7).toInt)
         else Right(len.toInt)
       },
       len =>
