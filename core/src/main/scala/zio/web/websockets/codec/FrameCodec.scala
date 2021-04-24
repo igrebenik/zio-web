@@ -26,17 +26,27 @@ sealed private[websockets] trait FrameCodec[+A] { self =>
 private[websockets] object FrameCodec {
   def apply[A](encode: A => BitChunk, decode: BitChunk => A): FrameCodec[A] = ???
 
-  val bit: FrameCodec[BitChunk] = ???
+  val bit: FrameCodec[BitChunk] =
+    FrameCodec[BitChunk](identity, identity)
 
-  val byte: FrameCodec[Byte] = ???
+  val byte: FrameCodec[Byte] =
+    FrameCodec[Byte](byte => BitChunk.bytes(byte), chunk => chunk.toByte)
 
-  val bytes: FrameCodec[Chunk[Byte]] = ???
+  val bytes: FrameCodec[Chunk[Byte]] =
+    FrameCodec[Chunk[Byte]](bs => BitChunk.bytes(bs), chunk => chunk.bytes)
 
-  val int: FrameCodec[BitChunk] = ???
+  val int: FrameCodec[Int] =
+    FrameCodec[Int](int => BitChunk.int(int), chunk => chunk.toInt)
 
-  val string: FrameCodec[String] = ???
+  val string: FrameCodec[String] =
+    bytes.imap[Chunk[Byte], String](
+      bs => new String(bs.toArray, "UTF-8"),
+      s => Chunk.fromArray(s.getBytes("UTF-8"))
+    )
 
   def bits(length: Int): FrameCodec[BitChunk] = ???
+
+  def bitsAtLeast(n: Int): FrameCodec[BitChunk] = ???
 
   sealed trait Zippable[-A, -B] {
     type Out

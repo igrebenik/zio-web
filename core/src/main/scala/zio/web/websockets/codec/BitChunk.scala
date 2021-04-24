@@ -4,6 +4,9 @@ import java.nio.ByteBuffer
 
 import zio.Chunk
 
+// bit ordering: Big Endian / Little Endian ?
+// padding: padRight, padLeft ?
+// strict size control !!!
 final private[websockets] case class BitChunk(
   bytes: Chunk[Byte],
   minBitIndex: Int,
@@ -60,6 +63,16 @@ final private[websockets] case class BitChunk(
     println(s"min=$min, max=$max")
     BitChunk(bytes.drop(toDrop), min, max)
   }
+
+  def |(that: BitChunk): BitChunk = ???
+
+  def &(that: BitChunk): BitChunk = ???
+
+  def ^(that: BitChunk): BitChunk = ???
+
+  def >>(n: Long): BitChunk = ???
+
+  def <<(n: Long): BitChunk = ???
 
   def foreach[A](f: Boolean => A): Unit = {
     val minByteIndex    = (minBitIndex + 7) >> 3
