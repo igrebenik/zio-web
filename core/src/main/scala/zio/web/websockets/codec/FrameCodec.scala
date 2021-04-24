@@ -8,19 +8,20 @@ sealed private[websockets] trait FrameCodec[+A] { self =>
   def <*>[B](that: FrameCodec[B])(implicit z: Zippable[A, B]): FrameCodec[z.Out] =
     self.zip(that)
 
-  def zip[B](that: FrameCodec[B])(implicit z: Zippable[A, B]): FrameCodec[z.Out] = ???
+  def zip[B](that: FrameCodec[B])(implicit z: Zippable[A, B]): FrameCodec[z.Out] =
+    self.flatMap(a => that.map(b => z.zip(a, b)))
+
+  def map[B](f: A => B): FrameCodec[B] = ???
+
+  def imap[A1 >: A, B](f: A1 => B, g: B => A1): FrameCodec[B] = ???
+
+  def eimap[A1 >: A, B](f: A1 => Either[String, B], g: B => Either[String, A1]): FrameCodec[B] = ???
+
+  def flatMap[B](f: A => FrameCodec[B]): FrameCodec[B] = ???
 
   def encode[A1 >: A](a: A1): Either[String, BitChunk] = ???
 
   def decode(bits: BitChunk): Either[String, A] = ???
-
-  def imap[A1 >: A, B](f: A1 => B, g: B => A1): FrameCodec[B] = ???
-
-  def map[B](f: A => B): FrameCodec[B] = ???
-
-  def flatMap[B](f: A => FrameCodec[B]): FrameCodec[B] = ???
-
-  def eimap[A1 >: A, B](f: A1 => Either[String, B], g: B => Either[String, A1]): FrameCodec[B] = ???
 }
 
 private[websockets] object FrameCodec {
