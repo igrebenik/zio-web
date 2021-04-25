@@ -12,7 +12,7 @@ sealed trait Frame {
 
 object Frame {
 
-  final case class Text(payload: String, last: Boolean = true) extends Frame { self =>
+  final case class Text(payload: String, last: Boolean = true) extends Frame {
 
     val header: Header =
       Header(
