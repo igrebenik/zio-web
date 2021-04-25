@@ -28,7 +28,7 @@ object Frame {
 
     val codec: FrameCodec[Frame.Text] =
       (Header.codec <*> FrameCodec.bytes)
-        .imap[(Header, Chunk[Byte]), Frame.Text](
+        .transform(
           {
             case (header, payload) =>
               Frame.Text(new String(payload.toArray, "UTF-8"), header.flags.fin)
@@ -53,7 +53,7 @@ object Frame {
 
     val codec: FrameCodec[Frame.Binary] =
       (Header.codec <*> FrameCodec.bytes)
-        .imap[(Header, Chunk[Byte]), Frame.Binary](
+        .transform(
           {
             case (header, payload) =>
               Frame.Binary(payload, header.flags.fin)
@@ -72,7 +72,7 @@ object Frame {
   object Ping {
 
     val codec: FrameCodec[Frame.Ping] =
-      Header.codec.imap[Header, Frame.Ping](_ => Frame.Ping(), ping => ping.header)
+      Header.codec.transform(_ => Frame.Ping(), ping => ping.header)
 
   }
 
@@ -86,7 +86,7 @@ object Frame {
   object Pong {
 
     val codec: FrameCodec[Frame.Pong] =
-      Header.codec.imap[Header, Frame.Pong](_ => Frame.Pong(), pong => pong.header)
+      Header.codec.transform(_ => Frame.Pong(), pong => pong.header)
 
   }
 
@@ -101,7 +101,7 @@ object Frame {
 
     val code: FrameCodec[Frame.Close] =
       (Header.codec <*> CloseCode.codec <*> FrameCodec.string)
-        .imap[(Header, CloseCode, String), Frame.Close](
+        .transform(
           {
             case (_, code, reason) =>
               Frame.Close(code, reason)
@@ -127,7 +127,7 @@ object Frame {
 
     val code: FrameCodec[Frame.Continuation] =
       (Header.codec <*> FrameCodec.bytes)
-        .imap[(Header, Chunk[Byte]), Frame.Continuation](
+        .transform(
           {
             case (header, payload) =>
               Frame.Continuation(payload, header.flags.fin)

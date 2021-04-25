@@ -11,7 +11,7 @@ object Flags {
   val codec: FrameCodec[Flags] =
     FrameCodec
       .bits(4)
-      .imap[BitChunk, Flags](
+      .transform(
         bits => Flags(bits.get(0), bits.get(1), bits.get(2), bits.get(3)),
         flags => BitChunk.bits(flags.fin, flags.rsv1, flags.rsv2, flags.rsv3)
       )

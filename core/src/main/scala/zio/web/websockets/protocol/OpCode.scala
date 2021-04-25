@@ -31,7 +31,7 @@ object OpCode {
   val codec: FrameCodec[OpCode] =
     FrameCodec
       .bits(4)
-      .eimap[BitChunk, OpCode](
+      .transformOrFail(
         ch =>
           fromByte(ch.toByte) match {
             case None         => Left(s"the valid opcode is not found")

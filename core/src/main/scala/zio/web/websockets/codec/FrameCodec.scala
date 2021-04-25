@@ -2,7 +2,7 @@ package zio.web.websockets.codec
 
 import zio.Chunk
 
-sealed private[websockets] trait FrameCodec[+A] { self =>
+sealed private[websockets] trait FrameCodec[A] { self =>
   import FrameCodec._
 
   def <*>[B](that: FrameCodec[B])(implicit z: Zippable[A, B]): FrameCodec[z.Out] =
@@ -11,15 +11,15 @@ sealed private[websockets] trait FrameCodec[+A] { self =>
   def zip[B](that: FrameCodec[B])(implicit z: Zippable[A, B]): FrameCodec[z.Out] =
     self.flatMap(a => that.map(b => z.zip(a, b)))
 
+  def transform[B](f: A => B, g: B => A): FrameCodec[B] = ???
+
+  def transformOrFail[B](f: A => Either[String, B], g: B => Either[String, A]): FrameCodec[B] = ???
+
   def map[B](f: A => B): FrameCodec[B] = ???
-
-  def imap[A1 >: A, B](f: A1 => B, g: B => A1): FrameCodec[B] = ???
-
-  def eimap[A1 >: A, B](f: A1 => Either[String, B], g: B => Either[String, A1]): FrameCodec[B] = ???
 
   def flatMap[B](f: A => FrameCodec[B]): FrameCodec[B] = ???
 
-  def encode[A1 >: A](a: A1): Either[String, BitChunk] = ???
+  def encode(a: A): Either[String, BitChunk] = ???
 
   def decode(bits: BitChunk): Either[String, A] = ???
 }
@@ -40,7 +40,7 @@ private[websockets] object FrameCodec {
     FrameCodec[Int](int => BitChunk.int(int), chunk => chunk.toInt)
 
   val string: FrameCodec[String] =
-    bytes.imap[Chunk[Byte], String](
+    bytes.transform(
       bs => new String(bs.toArray, "UTF-8"),
       s => Chunk.fromArray(s.getBytes("UTF-8"))
     )

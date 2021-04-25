@@ -9,7 +9,7 @@ object Header {
   val maskingKeyCodec: FrameCodec[Int] =
     FrameCodec
       .bits(4 * 8)
-      .imap[BitChunk, Int](
+      .transform[Int](
         ch => ch.toByteBuffer.getInt,
         int => BitChunk.int(int)
       )
@@ -17,7 +17,7 @@ object Header {
   val lengthCodec: FrameCodec[Int] =
     FrameCodec
       .bitsAtLeast(7)
-      .eimap[BitChunk, Int](
+      .transformOrFail[Int](
         ch => {
           val len = ch.take(7).toByte
 
@@ -35,7 +35,7 @@ object Header {
   //TODO: maskingKey needs to be optional (Option[Int])
   val codec: FrameCodec[Header] =
     (Flags.codec <*> OpCode.codec <*> FrameCodec.bit <*> lengthCodec <*> maskingKeyCodec)
-      .imap[(Flags, OpCode, BitChunk, Int, Int), Header](
+      .transform(
         {
           case (flags, opcode, maskBit, length, maskingKey) =>
             if (maskBit.get(0))

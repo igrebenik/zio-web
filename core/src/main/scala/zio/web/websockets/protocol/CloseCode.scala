@@ -40,7 +40,7 @@ object CloseCode {
   val codec: FrameCodec[CloseCode] =
     FrameCodec
       .bits(16)
-      .eimap[BitChunk, CloseCode](
+      .transformOrFail(
         ch =>
           fromShort(ch.toShort) match {
             case None       => Left(s"Invalid close code: ${ch.toShort}")
