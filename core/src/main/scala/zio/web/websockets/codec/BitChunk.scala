@@ -7,7 +7,7 @@ import zio.Chunk
 // bit ordering: Big Endian / Little Endian ?
 // padding: padRight, padLeft ?
 // strict size control !!!
-final private[websockets] case class BitChunk(
+final case class BitChunk(
   bytes: Chunk[Byte],
   minBitIndex: Int,
   maxBitIndex: Int
@@ -42,6 +42,7 @@ final private[websockets] case class BitChunk(
   def clear(n: Int): BitChunk =
     update(n, false)
 
+  // poorly implemented...
   def ++(that: BitChunk): BitChunk =
     BitChunk(
       self.bytes ++ that.bytes,
@@ -60,15 +61,19 @@ final private[websockets] case class BitChunk(
     val toDrop = index >> 3
     val min    = index & 7
     val max    = maxBitIndex - index + min
-    println(s"min=$min, max=$max")
     BitChunk(bytes.drop(toDrop), min, max)
   }
 
-  def |(that: BitChunk): BitChunk = ???
+  def zipWith[A](that: BitChunk)(f: (Boolean, Boolean) => Boolean): BitChunk = ???
 
-  def &(that: BitChunk): BitChunk = ???
+  def |(that: BitChunk): BitChunk =
+    self.zipWith(that)(_ | _)
 
-  def ^(that: BitChunk): BitChunk = ???
+  def &(that: BitChunk): BitChunk =
+    self.zipWith(that)(_ & _)
+
+  def ^(that: BitChunk): BitChunk =
+    self.zipWith(that)(_ ^ _)
 
   def >>(n: Long): BitChunk = ???
 

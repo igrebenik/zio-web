@@ -6,13 +6,14 @@ final case class Header(flags: Flags, opCode: OpCode, maskingKey: Option[Int], l
 
 object Header {
 
-  val maskingKeyCodec: FrameCodec[Int] =
+  val maskingKeyCodec: FrameCodec[Option[Int]] =
     FrameCodec
       .bits(4 * 8)
       .transform[Int](
         ch => ch.toByteBuffer.getInt,
         int => BitChunk.int(int)
       )
+      .optional
 
   val lengthCodec: FrameCodec[Int] =
     FrameCodec
@@ -32,21 +33,20 @@ object Header {
           else Left("The length of a payload is greater than Int.MaxValue!!!")
       )
 
-  //TODO: maskingKey needs to be optional (Option[Int])
   val codec: FrameCodec[Header] =
     (Flags.codec <*> OpCode.codec <*> FrameCodec.bit <*> lengthCodec <*> maskingKeyCodec)
       .transform(
         {
           case (flags, opcode, maskBit, length, maskingKey) =>
-            if (maskBit.get(0))
-              Header(flags, opcode, Some(maskingKey), length)
+            if (maskBit.get(0) && maskingKey.isDefined)
+              Header(flags, opcode, maskingKey, length)
             else
               Header(flags, opcode, None, length)
         },
         h =>
           h.maskingKey match {
-            case None      => (h.flags, h.opCode, BitChunk.oneLow, h.length, 0)
-            case Some(key) => (h.flags, h.opCode, BitChunk.oneHigh, h.length, key)
+            case None          => (h.flags, h.opCode, BitChunk.oneLow, h.length, None)
+            case key @ Some(_) => (h.flags, h.opCode, BitChunk.oneHigh, h.length, key)
           }
       )
 

@@ -4,9 +4,6 @@ import scala.annotation.switch
 
 import zio.web.websockets.codec.{ BitChunk, FrameCodec }
 
-/**
- * Defines the type of payload data
- */
 sealed abstract class OpCode(val code: Byte)
 
 object OpCode {
