@@ -1,8 +1,9 @@
 package zio.web.websockets.protocol
 
-import scala.annotation.switch
+import zio.web.websockets.codec.Bits._
+import zio.web.websockets.codec._
 
-import zio.web.websockets.codec.{ BitChunk, FrameCodec }
+import scala.annotation.switch
 
 sealed abstract class OpCode(val code: Byte)
 
@@ -25,16 +26,15 @@ object OpCode {
       case _    => None
     }
 
-  val codec: FrameCodec[OpCode] =
-    FrameCodec
+  val codec: Codec[OpCode] =
+    Codec
       .bits(4)
       .transformOrFail(
-        ch =>
-          fromByte(ch.toByte) match {
+        bits =>
+          fromByte(bits.bytes(0)) match {
             case None         => Left(s"the valid opcode is not found")
             case Some(opcode) => Right(opcode)
           },
-        opcode => Right(BitChunk.byte(opcode.code))
+        opcode => Right(Bits.fromByte(opcode.code))
       )
-
 }

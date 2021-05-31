@@ -2,7 +2,7 @@ package zio.web.websockets.protocol
 
 import scala.annotation.switch
 
-import zio.web.websockets.codec.{ BitChunk, FrameCodec }
+import zio.web.websockets.codec.Codec
 
 sealed abstract class CloseCode(val code: Short) extends Product with Serializable
 
@@ -37,16 +37,14 @@ object CloseCode {
       case _    => None
     }
 
-  val codec: FrameCodec[CloseCode] =
-    FrameCodec
-      .bits(16)
+  val codec: Codec[CloseCode] =
+    Codec.short
       .transformOrFail(
-        ch =>
-          fromShort(ch.toShort) match {
-            case None       => Left(s"Invalid close code: ${ch.toShort}")
+        short =>
+          fromShort(short) match {
+            case None       => Left(s"Invalid close code: ${short}")
             case Some(code) => Right(code)
           },
-        code => Right(BitChunk.short(code.code))
+        code => Right(code.code)
       )
-
 }

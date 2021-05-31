@@ -1,53 +1,44 @@
 package zio.web.websockets.protocol
 
-import zio.web.websockets.codec.{ BitChunk, FrameCodec }
+import zio.web.websockets.codec._
+import zio.web.websockets.codec.Bits._
 
 final case class Header(flags: Flags, opCode: OpCode, maskingKey: Option[Int], length: Int)
 
 object Header {
 
-  val maskingKeyCodec: FrameCodec[Option[Int]] =
-    FrameCodec
-      .bits(4 * 8)
-      .transform[Int](
-        ch => ch.toByteBuffer.getInt,
-        int => BitChunk.int(int)
-      )
-      .optional
+  val maskingKeyCodec: Codec[Option[Int]] = Codec.int.optional
 
-  val lengthCodec: FrameCodec[Int] =
-    FrameCodec
-      .bitsAtLeast(7)
-      .transformOrFail[Int](
-        ch => {
-          val len = ch.take(7).toByte
+  val lengthCodec: Codec[Int] =
+    Codec
+      .bitRange(7, 71)
+      .transformOrFail(
+        bits => {
+          val len = bits.take(7).bytes(0)
 
           if (len < 126) Right(len.toInt)
-          else if (len == 126 | len == 127) Right(ch.drop(7).toInt)
-          else Left("Unknown payload length")
+          else if (len == 126 | len == 127) {
+            bits.drop(7).toInt match {
+              case None      => Left("Couldn't get Int value without loss of precision")
+              case Some(int) => Right(int)
+            }
+          } else Left("Unsupported payload length")
         },
         len =>
-          if (len < 126) Right(BitChunk.byte((len & 0xFF).toByte, size = 7))
-          else if (len < 65536) Right(BitChunk.byte(0x7E, size = 7) ++ BitChunk.short(len.toShort))
-          else if (len <= Int.MaxValue) Right(BitChunk.byte(0x7F, size = 7) ++ BitChunk.long(len.toLong))
-          else Left("The length of a payload is greater than Int.MaxValue!!!")
+          if (len < 126) Right(Bits.fromByte((len & 0xFF).toByte))
+          else if (len < 65536) Right(Bits.fromByte(0x7E.toByte) ++ Bits.fromShort(len.toShort))
+          else if (len <= Int.MaxValue) Right(Bits.fromByte(0x7F.toByte) ++ Bits.fromLong(len.toLong))
+          else Left("the length of the paylod is greater than Int.MaxValue")
       )
 
-  val codec: FrameCodec[Header] =
-    (Flags.codec <*> OpCode.codec <*> FrameCodec.bit <*> lengthCodec <*> maskingKeyCodec)
-      .transform(
+  val codec: Codec[Header] =
+    (Flags.codec ~ OpCode.codec ~ Codec.boolean ~ lengthCodec ~ maskingKeyCodec)
+      .transformOrFail(
         {
-          case (flags, opcode, maskBit, length, maskingKey) =>
-            if (maskBit.get(0) && maskingKey.isDefined)
-              Header(flags, opcode, maskingKey, length)
-            else
-              Header(flags, opcode, None, length)
+          case (flags, opCode, true, length, Some(maskingKey)) => Right(Header(flags, opCode, Some(maskingKey), length))
+          case (flags, opCode, false, length, None)            => Right(Header(flags, opCode, None, length))
+          case _                                               => Left("masking key has invalid value")
         },
-        h =>
-          h.maskingKey match {
-            case None          => (h.flags, h.opCode, BitChunk.oneLow, h.length, None)
-            case key @ Some(_) => (h.flags, h.opCode, BitChunk.oneHigh, h.length, key)
-          }
+        header => Right((header.flags, header.opCode, header.maskingKey.isDefined, header.length, header.maskingKey))
       )
-
 }

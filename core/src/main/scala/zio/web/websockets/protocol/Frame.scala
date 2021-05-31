@@ -1,8 +1,11 @@
 package zio.web.websockets.protocol
 
+import java.nio.charset.{ StandardCharsets => Charsets }
+
 import zio.Chunk
 
-import zio.web.websockets.codec.FrameCodec
+import zio.web.websockets.codec.Codec
+import zio.web.websockets.codec.Bits._
 
 sealed trait Frame {
   def header: Header
@@ -23,11 +26,12 @@ object Frame {
 
   object Text {
 
-    val codec: FrameCodec[Frame.Text] =
-      (Header.codec <*> FrameCodec.bytes)
+    val codec: Codec[Frame.Text] =
+      Header.codec
+        .sizeBytes(_.length)
         .transform(
-          { case (header, payload) => Frame.Text(new String(payload.toArray, "UTF-8"), header.flags.fin) },
-          frame => (frame.header, Chunk.fromArray(frame.payload.getBytes("UTF-8")))
+          { case (header, payload) => Frame.Text(new String(payload.bytes.toArray, Charsets.UTF_8), header.flags.fin) },
+          frame => (frame.header, Chunk.fromArray(frame.payload.getBytes(Charsets.UTF_8)).asBits)
         )
   }
 
@@ -44,51 +48,43 @@ object Frame {
 
   object Binary {
 
-    val codec: FrameCodec[Frame.Binary] =
-      (Header.codec <*> FrameCodec.bytes)
+    val codec: Codec[Frame.Binary] =
+      Header.codec
+        .sizeBytes(_.length)
         .transform(
-          { case (header, payload) => Frame.Binary(payload, header.flags.fin) },
-          frame => (frame.header, frame.paylaod)
+          { case (header, payload) => Frame.Binary(payload.bytes, header.flags.fin) },
+          frame => (frame.header, frame.paylaod.asBits)
         )
   }
 
   final case class Ping() extends Frame {
-
-    val header: Header =
-      Header(Flags.last, OpCode.Ping, None, 0)
+    val header: Header = Header(Flags.last, OpCode.Ping, None, 0)
   }
 
   object Ping {
-
-    val codec: FrameCodec[Frame.Ping] =
-      Header.codec.transform(_ => Frame.Ping(), ping => ping.header)
+    val codec: Codec[Frame.Ping] = Header.codec.transform(_ => Frame.Ping(), _.header)
   }
 
   final case class Pong() extends Frame {
-
-    val header: Header =
-      Header(Flags.last, OpCode.Pong, None, 0)
+    val header: Header = Header(Flags.last, OpCode.Pong, None, 0)
   }
 
   object Pong {
-
-    val codec: FrameCodec[Frame.Pong] =
-      Header.codec.transform(_ => Frame.Pong(), pong => pong.header)
+    val codec: Codec[Frame.Pong] = Header.codec.transform(_ => Frame.Pong(), _.header)
   }
 
   final case class Close(code: CloseCode, reason: String) extends Frame {
-
-    val header: Header =
-      Header(Flags.last, OpCode.Close, None, reason.getBytes().length + 2)
+    val header: Header = Header(Flags.last, OpCode.Close, None, reason.getBytes().length + 2)
   }
 
   object Close {
 
-    val code: FrameCodec[Frame.Close] =
-      (Header.codec <*> CloseCode.codec <*> FrameCodec.string)
+    val codec: Codec[Frame.Close] =
+      (Header.codec ~ CloseCode.codec)
+        .sizeBytes(_._1.length)
         .transform(
-          { case (_, code, reason) => Frame.Close(code, reason) },
-          code => (code.header, code.code, code.reason)
+          { case ((_, code), reason) => Frame.Close(code, new String(reason.bytes.toArray, Charsets.UTF_8)) },
+          frame => ((frame.header, frame.code), Chunk.fromArray(frame.reason.getBytes(Charsets.UTF_8)).asBits)
         )
   }
 
@@ -105,11 +101,12 @@ object Frame {
 
   object Continuation {
 
-    val code: FrameCodec[Frame.Continuation] =
-      (Header.codec <*> FrameCodec.bytes)
+    val codec: Codec[Frame.Continuation] =
+      Header.codec
+        .sizeBytes(_.length)
         .transform(
-          { case (header, payload) => Frame.Continuation(payload, header.flags.fin) },
-          frame => (frame.header, frame.payload)
+          { case (header, payload) => Frame.Continuation(payload.bytes, header.flags.fin) },
+          frame => (frame.header, frame.payload.asBits)
         )
   }
 
